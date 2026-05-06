@@ -1,4 +1,4 @@
-# Creal for Python — CS453 Team 7
+# CS453 Automated Software Testing - Creal for Python — Team 7
 
 Creal for Python is a fuzzing framework that tests Python source-processing tools by injecting real-world code snippets into synthetically generated programs. Inspired by [Creal for C compilers (PLDI'24)](https://dl.acm.org/doi/10.1145/3656462), the core hypothesis is that real-world code injection produces richer, more diverse test inputs than synthetic generation alone — and therefore exposes more bugs.
 
