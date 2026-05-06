@@ -1,0 +1,18 @@
+# Python >= 3.12
+
+# Synthetic program generation
+hypothesis
+hypothesmith
+
+# Target tools
+black
+ruff
+lark
+
+# Corpus collection
+requests
+tqdm
+
+# Testing
+pytest
+pytest-cov

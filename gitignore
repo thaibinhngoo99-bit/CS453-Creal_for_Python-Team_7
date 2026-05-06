@@ -1,0 +1,32 @@
+# Project data
+results/generated/
+results/bugs/
+results/coverage/
+results/logs/
+corpus/raw/
+corpus/filtered/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
