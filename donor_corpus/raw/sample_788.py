@@ -1,1 +1,0 @@
-class UnsafeUtility:	pass

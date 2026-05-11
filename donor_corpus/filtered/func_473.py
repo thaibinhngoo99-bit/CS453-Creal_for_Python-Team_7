@@ -1,5 +1,0 @@
-def test():
-    loader = unittest.TestLoader()
-    testSuite = loader.discover('linkograph.tests')
-    runner = unittest.TextTestRunner()
-    runner.run(testSuite)

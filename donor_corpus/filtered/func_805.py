@@ -1,4 +1,0 @@
-def init_sample():
-    import datetime
-    type_map.update({'char': int, 'char**': typing.List[str], 'Complex': complex, 'double': float, 'Foo.HANDLE': int, 'HANDLE': int, 'Null': None, 'nullptr': None, 'ObjectType.Identifier': Missing('sample.ObjectType.Identifier'), 'OddBool': bool, 'PStr': str, 'PyDate': datetime.date, 'sample.bool': bool, 'sample.char': int, 'sample.double': float, 'sample.int': int, 'sample.ObjectType': object, 'sample.OddBool': bool, 'sample.Photon.TemplateBase[Photon.DuplicatorType]': sample.Photon.ValueDuplicator, 'sample.Photon.TemplateBase[Photon.IdentityType]': sample.Photon.ValueIdentity, 'sample.Point': Point, 'sample.PStr': str, 'sample.unsigned char': int, 'std.size_t': int, 'std.string': str, 'ZeroIn': 0, 'Str("<unk")': '<unk', 'Str("<unknown>")': '<unknown>', 'Str("nown>")': 'nown>'})
-    return locals()

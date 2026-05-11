@@ -1,3 +1,0 @@
-globalmatch,match#ÍðN;#
-
-	   						  

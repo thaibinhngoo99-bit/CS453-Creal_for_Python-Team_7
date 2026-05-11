@@ -8,28 +8,29 @@ Creal for Python is a fuzzing framework that tests Python source-processing tool
 
 ```
 CS374.../
+├── directory/
+│   ├── base_programs/      # Stores Hypothesmith baseline & donor corpus (raw & filtered)
+│   │   ├── donor_corpus/
+│   │   │   ├── filtered/
+│   │   │   └── raw/
+│   │   └── hypo_baseline/
+│   └── injected_programs   # Stores injected programs (valid & invalid)   
+│   │   ├── invalid/
+│   │   └── valid/
+├── results/         
+|   └── baseline/        
+|   └── proposed/       
 ├── src/
 │   ├── __init__.py
-│   ├── generate.py     # Hypothesmith baseline + real-world injection logic
-│   ├── execute.py      # Run target tools on generated programs
-│   ├── oracles.py      # Property-based oracles (AST idempotence, behavioral equiv.)
-│   └── targets.py      # Wrappers for ast, Black, ruff, lark
-├── corpus/
-│   ├── raw/            # Downloaded code snippets (gitignored)
-│   ├── filtered/       # Compilable, relevant snippets (gitignored)
-│   └── collect.py      # Corpus collection & filtering script
-├── results/           
-|   └── generated/      # Stores generated programs (baseline & proposed)
-│   │   ├── baseline/
-│   │   └── proposed/
-|   └── bugs/
-|   └── coverage/
-|   └── logs/
-├── tests/
-│   ├── test_generate.py    # Tests for Hypothesmith + injection logic
-│   ├── test_oracles.py     # Tests for AST idempotence & behavioral equiv.
-│   ├── test_targets.py     # Tests each tool wrapper runs without error
-│   └── test_corpus.py      # Tests that collect.py filters correctly
+│   ├── execute_baseline.py      # Run target tools on Hypothesmith baseline 
+│   ├── execute_proposed.py      # Run target tools on injected programs
+│   ├── filter_donor.py          # Filters donor corpus 
+│   ├── generate_baseline.py     # Generate Hypothesmith baseline 
+│   ├── inject/                  # Injects donor corpus into Hypothesmith baseline with different logics
+│   │   ├── logic_1/
+│   │   └── logic_2/
+│   ├── oracles.py               # Property-based oracles (AST idempotence, behavioral equiv.)
+│   └── targets.py               # Wrappers for ast, Black, ruff, lark
 ├── .gitignore
 ├── README.md
 └── requirements.txt

@@ -1,0 +1,37 @@
+# Generated project outputs
+directory/
+results/
+
+# Legacy/generated data locations
+corpus/raw/
+corpus/filtered/
+donor_corpus/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage/
+
+# Tooling state
+.hypothesis/
+
+# Virtual environments
+.env
+.venv/
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

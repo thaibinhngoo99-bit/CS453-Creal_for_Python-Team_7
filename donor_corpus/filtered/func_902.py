@@ -1,8 +1,0 @@
-def test_introspects_on_input_object():
-    TestInputObject = GraphQLInputObjectType('TestInputObject', {'a': GraphQLInputObjectField(GraphQLString, default_value='foo'), 'b': GraphQLInputObjectField(GraphQLList(GraphQLString))})
-    TestType = GraphQLObjectType('TestType', {'field': GraphQLField(type=GraphQLString, args={'complex': GraphQLArgument(TestInputObject)}, resolver=lambda obj, args, info: json.dumps(args.get('complex')))})
-    schema = GraphQLSchema(TestType)
-    request = '\n      {\n        __schema {\n          types {\n            kind\n            name\n            inputFields {\n              name\n              type { ...TypeRef }\n              defaultValue\n            }\n          }\n        }\n      }\n      fragment TypeRef on __Type {\n        kind\n        name\n        ofType {\n          kind\n          name\n          ofType {\n            kind\n            name\n            ofType {\n              kind\n              name\n            }\n          }\n        }\n      }\n    '
-    result = graphql(schema, request)
-    assert not result.errors
-    assert sort_lists({'kind': 'INPUT_OBJECT', 'name': 'TestInputObject', 'inputFields': [{'name': 'a', 'type': {'kind': 'SCALAR', 'name': 'String', 'ofType': None}, 'defaultValue': '"foo"'}, {'name': 'b', 'type': {'kind': 'LIST', 'name': None, 'ofType': {'kind': 'SCALAR', 'name': 'String', 'ofType': None}}, 'defaultValue': None}]}) in sort_lists(result.data['__schema']['types'])

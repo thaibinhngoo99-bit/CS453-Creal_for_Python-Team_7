@@ -1,1 +1,0 @@
-SOURCE_DOC_PATH = ''
