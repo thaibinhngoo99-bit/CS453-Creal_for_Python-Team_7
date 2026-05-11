@@ -1,8 +1,7 @@
 # Python >= 3.12
 
-# Synthetic program generation
-hypothesis
-hypothesmith
+# Patched Hypothesmith submodule
+-e vendor/hypothesmith
 
 # Target tools
 black
@@ -16,6 +15,3 @@ tqdm
 # Testing
 pytest
 pytest-cov
-
-# Token
-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

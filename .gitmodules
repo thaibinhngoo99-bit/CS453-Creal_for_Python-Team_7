@@ -1,0 +1,3 @@
+[submodule "vendor/hypothesmith"]
+	path = vendor/hypothesmith
+	url = https://github.com/Zac-HD/hypothesmith
