@@ -15,3 +15,4 @@ tqdm
 # Testing
 pytest
 pytest-cov
+parso
