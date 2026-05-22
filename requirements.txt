@@ -11,8 +11,11 @@ lark
 # Corpus collection
 requests
 tqdm
+datasets
+huggingface_hub
 
 # Testing
 pytest
 pytest-cov
+coverage
 parso
