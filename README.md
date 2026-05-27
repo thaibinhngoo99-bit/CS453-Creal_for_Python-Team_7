@@ -29,24 +29,24 @@ def test_ast_parse_unparse_roundtrip(source):
 
 ```text
 CS374_Team7/
-├── vendor/
-│   └── hypothesmith/          # Git submodule with patched Hypothesmith code
 ├── src/
-│   ├── execute_baseline.py    # Evaluate no-injection generation
-│   ├── execute_proposed.py    # Evaluate injection-enabled generation
-│   ├── evaluation.py          # Shared on-the-fly evaluation harness
-│   ├── oracles.py             # AST, tokenize, and Black oracles
-│   ├── target_configs/        # Target-specific coverage/configuration
-│   └── targets.py             # Wrappers around target tools
-├── vendor/hypothesmith/deps/src/hypothesmith/
-│   ├── injection.py           # Donor injection entrypoint
-│   └── injection_strategies/  # Strategy implementations + shared helpers
+│   ├── execute_baseline.py            # Evaluate no-injection generation
+│   ├── execute_proposed.py            # Evaluate injection-enabled generation
+│   ├── evaluation.py                  # Shared on-the-fly evaluation harness
+│   ├── oracles.py                     # AST, tokenize, and Black oracles
+│   ├── target_configs/                # Target-specific coverage/configuration
+│   └── targets.py                     # Wrappers around target tools
+├── vendor/
+│   └── hypothesmith/                  # Git submodule with patched Hypothesmith code
+│       └── deps/src/hypothesmith/       
+│           ├── injection.py           # Donor injection entrypoint
+│           └── injection_strategies/  # Strategy implementations + shared helpers
 ├── directory/
 │   └── base_programs/
 │       └── donor_corpus/
-│           ├── raw/           # Raw donor snippets from The Stack
-│           └── filtered/      # Current default donor snippets, ignored by Git
-├── results/                   # Evaluation reports, ignored by Git
+│           ├── raw/                   # Raw donor snippets from The Stack
+│           └── filtered/              # Current default donor snippets, ignored by Git
+├── results/                           # Evaluation reports, ignored by Git
 └── requirements.txt
 ```
 
@@ -225,29 +225,59 @@ Python line coverage: `tokenize` is mostly measurable, `ast` does not include
 CPython parser internals, and Black requires a pure-Python/editable install
 rather than a compiled mypyc wheel for meaningful coverage data.
 
-Run the six-way Black 24-hour coverage-snapshot comparison with stdout and
-stderr captured per variant:
+Run the current three-way 24-hour `from_node` coverage-snapshot comparison by
+launching one process per variant:
 
 ```bash
-mkdir -p results/black_24h_compare_cov_snapshots_v5
-nohup scripts/run_black_24h_compare_cov_snapshots.sh \
-  results/black_24h_compare_cov_snapshots_v5 \
-  > results/black_24h_compare_cov_snapshots_v5/launcher.stdout.log \
-  2> results/black_24h_compare_cov_snapshots_v5/launcher.stderr.log &
+ROOT=results/black_from_node_24h_auto_target_on_cst_lazy_batch10000_v1
+mkdir -p "$ROOT"/{aggressive,append,no_injection}
+
+timeout --verbose --signal=INT --kill-after=300 90000 \
+  python3 -u src/execute_proposed.py \
+    --oracle black \
+    --timeout 86400 \
+    --coverage \
+    --coverage-snapshot-interval 900 \
+    --generation-mode from_node \
+    --injection-strategy aggressive \
+    --results-dir "$ROOT/aggressive" \
+    > "$ROOT/aggressive/launcher.stdout.log" \
+    2> "$ROOT/aggressive/launcher.stderr.log" &
+
+timeout --verbose --signal=INT --kill-after=300 90000 \
+  python3 -u src/execute_proposed.py \
+    --oracle black \
+    --timeout 86400 \
+    --coverage \
+    --coverage-snapshot-interval 900 \
+    --generation-mode from_node \
+    --injection-strategy append \
+    --results-dir "$ROOT/append" \
+    > "$ROOT/append/launcher.stdout.log" \
+    2> "$ROOT/append/launcher.stderr.log" &
+
+timeout --verbose --signal=INT --kill-after=300 90000 \
+  python3 -u src/execute_proposed.py \
+    --oracle black \
+    --timeout 86400 \
+    --coverage \
+    --coverage-snapshot-interval 900 \
+    --generation-mode from_node \
+    --no-injection \
+    --results-dir "$ROOT/no_injection" \
+    > "$ROOT/no_injection/launcher.stdout.log" \
+    2> "$ROOT/no_injection/launcher.stderr.log" &
 ```
 
-Each variant writes `logs/<variant>.stdout.log`, `logs/<variant>.stderr.log`,
-and `logs/<variant>.meta.log`. The evaluator also initializes
-`run_error.log` inside each target result directory and writes a Python
-traceback there before re-raising unexpected harness errors. The launcher wraps
-each Python process in an outer `timeout --verbose` supervisor set to one hour
-past the requested run budget by default, so a process that ignores the
-in-process timer still leaves an exit status and timeout message in the logs.
-Set `AUTO_TARGET=off` when launching to pass `--no-auto-target` to every
-variant and disable Hypothesmith's target-guided search.
-Set `ORACLE_NAME=tokenize` to run the same launcher against `tokenize`, and
-set `RUN_VARIANTS="from_grammar_append from_grammar_aggressive
-from_grammar_no_injection"` to run only grammar variants.
+Each variant writes `launcher.stdout.log` and `launcher.stderr.log` beside its
+target result directory. The evaluator also initializes `run_error.log` inside
+each target result directory and writes a Python traceback there before
+re-raising unexpected harness errors. The outer `timeout --verbose` supervisor
+is set to one hour past the requested run budget, so a process that ignores the
+in-process timer still leaves an exit status and timeout message in the
+launcher stderr log. Add `--no-auto-target` to each command to disable
+Hypothesmith's target-guided search, or change `--oracle black` to
+`--oracle tokenize` to run the same comparison against `tokenize`.
 
 `--generation-mode from_grammar` uses Hypothesmith's grammar-based generator.
 `--generation-mode from_node` uses Hypothesmith's LibCST-based generator.

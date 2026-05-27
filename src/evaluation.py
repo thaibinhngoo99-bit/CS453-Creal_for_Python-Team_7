@@ -4,6 +4,8 @@ Shared on-the-fly evaluation harness for Hypothesmith strategies.
 
 from __future__ import annotations
 
+import ctypes
+import gc
 import traceback
 import warnings
 from dataclasses import dataclass
@@ -53,14 +55,26 @@ ORACLES: tuple[Oracle, ...] = (
 )
 ORACLE_BY_NAME = dict(ORACLES)
 ORACLE_NAMES = tuple(ORACLE_BY_NAME)
-# Hypothesis exposes max_examples and per-example deadline, but not a total
-# wall-clock timeout setting.  Timeout mode therefore uses a very high internal
-# cap and stops from the test body once the elapsed budget is consumed.
-TIMEOUT_MODE_MAX_EXAMPLES = 1_000_000_000
+# Hypothesis keeps per-run generation state, so one enormous time-limited run
+# grows in memory over long experiments.  Timeout mode runs bounded batches and
+# releases that state between batches while cumulative stats/coverage continue.
+TIMEOUT_MODE_BATCH_EXAMPLES = 10_000
 
 
 class _TimeLimitReached(BaseException):
     """Internal control-flow signal for time-limited Hypothesis runs."""
+
+
+def _trim_released_memory() -> None:
+    """Return released batch memory to the OS when the platform supports it."""
+
+    gc.collect()
+    if sys.platform != "linux":
+        return
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (AttributeError, OSError):
+        return
 
 
 def _exception_chain_contains(
@@ -153,6 +167,32 @@ def _save_generated_source(
     return out_path
 
 
+def _save_generated_provenance(
+    *,
+    provenance_dir: Path,
+    index: int,
+    status: str,
+    source: str,
+) -> Path | None:
+    provenance = getattr(source, "hypothesmith_provenance", None)
+    if provenance is None:
+        return None
+
+    out_dir = provenance_dir / f"{index:04d}_{status}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "host.py").write_text(provenance.host_source, encoding="utf-8")
+    (out_dir / "donor.py").write_text(provenance.donor_source, encoding="utf-8")
+    (out_dir / "injected.py").write_text(str(source), encoding="utf-8")
+    (out_dir / "metadata.tsv").write_text(
+        "field\tvalue\n"
+        f"injection_strategy\t{provenance.injection_strategy}\n"
+        f"donor_index\t{provenance.donor_index}\n"
+        f"donor_path\t{provenance.donor_path}\n",
+        encoding="utf-8",
+    )
+    return out_dir
+
+
 def _append_generated_result(
     *,
     manifest_file: Path,
@@ -160,12 +200,15 @@ def _append_generated_result(
     oracle_name: str,
     status: str,
     source_path: Path,
+    provenance_path: Path | None = None,
     failure_path: Path | None = None,
 ) -> None:
     failure_value = "" if failure_path is None else str(failure_path)
+    provenance_value = "" if provenance_path is None else str(provenance_path)
     with manifest_file.open("a", encoding="utf-8") as f:
         f.write(
-            f"{index}\t{oracle_name}\t{status}\t{source_path}\t{failure_value}\n"
+            f"{index}\t{oracle_name}\t{status}\t{source_path}\t"
+            f"{provenance_value}\t{failure_value}\n"
         )
 
 
@@ -333,6 +376,7 @@ def _run_oracle_evaluation(
 
     failures_dir = results_dir / "failures"
     generated_dir = results_dir / "generated"
+    provenance_dir = results_dir / "generated_provenance"
     summaries_dir = results_dir / "summaries"
     results_file = results_dir / "execution_results.txt"
     run_error_file = results_dir / "run_error.log"
@@ -345,12 +389,13 @@ def _run_oracle_evaluation(
     failures_dir.mkdir(parents=True, exist_ok=True)
     if log_generated:
         generated_dir.mkdir(parents=True, exist_ok=True)
+        provenance_dir.mkdir(parents=True, exist_ok=True)
     summaries_dir.mkdir(parents=True, exist_ok=True)
     results_file.write_text("", encoding="utf-8")
     run_error_file.write_text("", encoding="utf-8")
     if manifest_file is not None:
         manifest_file.write_text(
-            "example\toracle\tstatus\tsource_path\tfailure_path\n",
+            "example\toracle\tstatus\tsource_path\tprovenance_path\tfailure_path\n",
             encoding="utf-8",
         )
     if measure_coverage and coverage_snapshot_interval_seconds is not None:
@@ -491,12 +536,19 @@ def _run_oracle_evaluation(
                         status="failure",
                         source=source,
                     )
+                    provenance_path = _save_generated_provenance(
+                        provenance_dir=provenance_dir,
+                        index=example_index,
+                        status="failure",
+                        source=source,
+                    )
                     _append_generated_result(
                         manifest_file=manifest_file,
                         index=example_index,
                         oracle_name=oracle_name,
                         status="failure",
                         source_path=source_path,
+                        provenance_path=provenance_path,
                         failure_path=failure_path,
                     )
                 _append_result(
@@ -515,20 +567,23 @@ def _run_oracle_evaluation(
                     status="pass",
                     source=source,
                 )
+                provenance_path = _save_generated_provenance(
+                    provenance_dir=provenance_dir,
+                    index=example_index,
+                    status="pass",
+                    source=source,
+                )
                 _append_generated_result(
                     manifest_file=manifest_file,
                     index=example_index,
                     oracle_name=oracle_name,
                     status="pass",
                     source_path=source_path,
+                    provenance_path=provenance_path,
                 )
             _append_result(results_file, f"[PASS] example_{example_index:04d}")
 
-    hypothesis_max_examples = (
-        max_examples if max_examples is not None else TIMEOUT_MODE_MAX_EXAMPLES
-    )
     settings_kwargs = {
-        "max_examples": hypothesis_max_examples,
         "deadline": None,
         "suppress_health_check": [
             HealthCheck.filter_too_much,
@@ -538,17 +593,33 @@ def _run_oracle_evaluation(
     if timeout_seconds is not None:
         settings_kwargs["verbosity"] = Verbosity.quiet
 
-    @settings(
-        **settings_kwargs,
-    )
-    @given(source=strategy)
-    def execute_oracle(source: str) -> None:
-        if time_limit_reached():
-            raise _TimeLimitReached
-        evaluate_source(source)
-        write_due_coverage_snapshots()
-        if time_limit_reached():
-            raise _TimeLimitReached
+    def run_hypothesis_batch(batch_max_examples: int) -> None:
+        @settings(
+            max_examples=batch_max_examples,
+            **settings_kwargs,
+        )
+        @given(source=strategy)
+        def execute_oracle(source: str) -> None:
+            if time_limit_reached():
+                raise _TimeLimitReached
+            evaluate_source(source)
+            write_due_coverage_snapshots()
+            if time_limit_reached():
+                raise _TimeLimitReached
+
+        execute_oracle()
+
+    def execute_until_done() -> None:
+        if timeout_seconds is None:
+            assert max_examples is not None
+            run_hypothesis_batch(max_examples)
+            return
+
+        while not time_limit_reached():
+            try:
+                run_hypothesis_batch(TIMEOUT_MODE_BATCH_EXAMPLES)
+            finally:
+                _trim_released_memory()
 
     if cov is not None:
         start_coverage()
@@ -572,7 +643,7 @@ def _run_oracle_evaluation(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SyntaxWarning)
             try:
-                execute_oracle()
+                execute_until_done()
             except _TimeLimitReached:
                 pass
             except FlakyStrategyDefinition as error:

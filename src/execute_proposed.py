@@ -29,20 +29,6 @@ DEFAULT_EXAMPLES = 100
 GENERATION_MODES = ("from_grammar", "from_node")
 
 
-def positive_int(value: str) -> int:
-    parsed = int(value)
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("must be a positive integer")
-    return parsed
-
-
-def positive_float(value: str) -> float:
-    parsed = float(value)
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("must be a positive number of seconds")
-    return parsed
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Evaluate Hypothesmith generation with donor injection."
@@ -50,13 +36,13 @@ def parse_args() -> argparse.Namespace:
     termination = parser.add_mutually_exclusive_group()
     termination.add_argument(
         "--examples",
-        type=positive_int,
+        type=int,
         default=None,
         help=f"number of generated examples to evaluate (default: {DEFAULT_EXAMPLES})",
     )
     termination.add_argument(
         "--timeout",
-        type=positive_float,
+        type=float,
         default=None,
         help="seconds to keep generating examples",
     )
@@ -114,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--coverage-snapshot-interval",
-        type=positive_float,
+        type=float,
         default=None,
         help="write live coverage snapshots every N seconds during timeout runs",
     )
