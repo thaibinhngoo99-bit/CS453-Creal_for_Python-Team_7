@@ -17,7 +17,9 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .coverage
+*.profraw
 coverage/
+.native_coverage/
 
 # Tooling state
 .hypothesis/
@@ -27,6 +29,7 @@ coverage/
 .venv/
 env/
 venv/
+venv_*/
 
 # IDE
 .vscode/

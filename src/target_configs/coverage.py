@@ -9,6 +9,7 @@ COMPILED_SUFFIXES = (".so", ".pyd")
 TARGET_COVERAGE_SOURCES = {
     "ast": ["ast"],
     "black": ["black"],
+    "lib2to3": ["lib2to3"],
     "tokenize": ["tokenize"],
 }
 
@@ -27,6 +28,12 @@ def _compiled_module_reason(module_name: str, message: str) -> str | None:
     return None
 
 
+def _missing_module_reason(module_name: str, message: str) -> str | None:
+    if importlib.util.find_spec(module_name) is None:
+        return message
+    return None
+
+
 def _black_unavailable_reason() -> str | None:
     return _compiled_module_reason(
         "black",
@@ -38,6 +45,13 @@ def _black_unavailable_reason() -> str | None:
     )
 
 
+def _lib2to3_unavailable_reason() -> str | None:
+    return _missing_module_reason(
+        "lib2to3",
+        "lib2to3 is unavailable in this Python environment.",
+    )
+
+
 def get_coverage_config(oracle_name: str) -> CoverageConfig | None:
     if oracle_name not in TARGET_COVERAGE_SOURCES:
         return None
@@ -45,6 +59,8 @@ def get_coverage_config(oracle_name: str) -> CoverageConfig | None:
     unavailable_reason = None
     if oracle_name == "black":
         unavailable_reason = _black_unavailable_reason()
+    elif oracle_name == "lib2to3":
+        unavailable_reason = _lib2to3_unavailable_reason()
 
     return CoverageConfig(
         source=TARGET_COVERAGE_SOURCES[oracle_name],

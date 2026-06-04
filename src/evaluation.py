@@ -39,6 +39,8 @@ for vendored_src in (VENDOR_HYPOTHESMITH_SRC, VENDOR_HYPOTHESMITH_DEPS_SRC):
 from oracles import (  # noqa: E402
     oracle_ast_roundtrip,
     oracle_black_idempotent,
+    oracle_lib2to3_roundtrip,
+    oracle_libcst_roundtrip,
     oracle_tokenize_roundtrip,
 )
 from target_configs.coverage import (  # noqa: E402
@@ -50,6 +52,8 @@ from target_configs.coverage import (  # noqa: E402
 Oracle = tuple[str, Callable[[str], bool]]
 ORACLES: tuple[Oracle, ...] = (
     ("ast", oracle_ast_roundtrip),
+    ("lib2to3", oracle_lib2to3_roundtrip),
+    ("libcst", oracle_libcst_roundtrip),
     ("tokenize", oracle_tokenize_roundtrip),
     ("black", oracle_black_idempotent),
 )

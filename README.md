@@ -1,240 +1,111 @@
-# Creal for Python
+# Real-World Donor Injection for Hypothesmith
 
-Creal for Python extends
-[Hypothesmith](https://github.com/Zac-HD/hypothesmith) with real-world donor
-snippet injection. The main experiment compares normal Hypothesmith generation
-against an injected variant where each generated host program is combined with a
-snippet from a donor corpus.
+This project compares normal Hypothesmith generation with variants that inject
+real-world Python donor snippets into generated programs. The main workflow is
+to run the same target oracle under multiple generation strategies and compare
+coverage.
 
-The intended API extends Hypothesmith's generators with optional real-world
-donor injection:
+Current target oracles:
 
-```python
-import ast
+- `ast`
+- `tokenize`
+- `black`
+- `lib2to3`
+- `libcst`
 
-from hypothesis import given
+Current strategy variants used in the main experiments:
 
-import hypothesmith
-
-
-@given(hypothesmith.from_grammar(inject_realworld=True))
-def test_ast_parse_unparse_roundtrip(source):
-    tree1 = ast.parse(source)
-    new_source = ast.unparse(tree1)
-    tree2 = ast.parse(new_source)
-    assert ast.dump(tree1) == ast.dump(tree2)
-```
-
-## Project Structure
-
-```text
-CS374_Team7/
-├── src/
-│   ├── execute_baseline.py            # Evaluate no-injection generation
-│   ├── execute_proposed.py            # Evaluate injection-enabled generation
-│   ├── evaluation.py                  # Shared on-the-fly evaluation harness
-│   ├── oracles.py                     # AST, tokenize, and Black oracles
-│   ├── target_configs/                # Target-specific coverage/configuration
-│   └── targets.py                     # Wrappers around target tools
-├── vendor/
-│   └── hypothesmith/                  # Git submodule with patched Hypothesmith code
-│       └── deps/src/hypothesmith/       
-│           ├── injection.py           # Donor injection entrypoint
-│           └── injection_strategies/  # Strategy implementations + shared helpers
-├── directory/
-│   └── base_programs/
-│       └── donor_corpus/
-│           ├── raw/                   # Raw donor snippets from The Stack
-│           └── filtered/              # Current default donor snippets, ignored by Git
-├── results/                           # Evaluation reports, ignored by Git
-└── requirements.txt
-```
+- `aggressive`
+- `append`
+- `no_injection`
 
 ## Setup
 
 ```bash
 git clone --recurse-submodules <repo-url>
 cd CS374_Team7
+
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-If the repo was cloned without submodules:
+If submodules were not cloned:
 
 ```bash
 git submodule update --init --recursive
+pip install -r requirements.txt
 ```
 
-## Current Injection Code Path
-
-The current refactored donor-injection implementation lives under:
-
-```text
-vendor/hypothesmith/deps/src/hypothesmith/
-```
-
-To run the patched Hypothesmith implementation, prefix commands with:
+On Ubuntu/Python 3.12, `lib2to3` may need the split stdlib package:
 
 ```bash
-PYTHONPATH=vendor/hypothesmith/deps/src
+sudo apt-get install python3-lib2to3
 ```
 
-This prefix is recommended for both baseline and proposed runs so they use the
-same patched generator code.
+The runner scripts add the patched Hypothesmith paths automatically, so use
+`venv/bin/python3 src/execute_*.py` from the repo root.
 
-## Run Evaluations
+## Single Runs
 
-Baseline generation means no donor injection. It now supports both generator
-modes:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py --examples 100 --oracle ast
-```
-
-Proposed generation means donor injection is enabled:
+No donor injection:
 
 ```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py --examples 100 --oracle ast
-```
-
-Choose the baseline generator family:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py \
+venv/bin/python3 src/execute_baseline.py \
   --examples 100 \
-  --oracle ast \
-  --generation-mode from_grammar
-
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py \
-  --examples 100 \
-  --oracle ast \
-  --generation-mode from_node
-```
-
-Choose the target oracle with `--oracle`:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py --examples 100 --oracle ast
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py --examples 100 --oracle black
-```
-
-Use a wall-clock generation budget instead of an example count:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py --timeout 600 --oracle tokenize
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py --timeout 600 --oracle black
-```
-
-Log every generated source file and its result:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py \
-  --examples 100 \
-  --oracle ast \
-  --log-generated
-```
-
-Measure Python line coverage for the selected target:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_baseline.py \
-  --examples 100 \
-  --oracle black \
-  --coverage
-
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py \
-  --examples 100 \
-  --oracle black \
-  --coverage
-```
-
-Use a different donor snippet directory:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py \
-  --examples 100 \
-  --oracle ast \
-  --donor-dir directory/base_programs/donor_corpus/filtered
-```
-
-Choose a specific injection strategy:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py \
-  --timeout 600 \
-  --oracle ast \
-  --injection-strategy donor_wrap_host
-```
-
-Use Hypothesmith's CST generator instead of the grammar generator:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py \
-  --examples 100 \
-  --oracle ast \
-  --generation-mode from_node
-```
-
-Use `from_node` together with donor injection:
-
-```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py \
-  --examples 100 \
-  --oracle ast \
   --generation-mode from_node \
+  --oracle black
+```
+
+Injection enabled:
+
+```bash
+venv/bin/python3 src/execute_proposed.py \
+  --examples 100 \
+  --generation-mode from_node \
+  --oracle black \
   --injection-strategy append
 ```
 
-Disable donor injection in the proposed runner to match baseline-style
-generation while keeping the same evaluation harness:
+Use a time budget instead of an example count:
 
 ```bash
-PYTHONPATH=vendor/hypothesmith/deps/src \
-python3 src/execute_proposed.py \
-  --examples 100 \
-  --oracle ast \
-  --generation-mode from_grammar \
-  --no-injection
+venv/bin/python3 src/execute_proposed.py \
+  --timeout 600 \
+  --generation-mode from_node \
+  --oracle tokenize \
+  --injection-strategy aggressive
 ```
 
-The evaluation draws examples on the fly with Hypothesis and runs one target per
-command. Pass either `--examples` or `--timeout`; they are mutually exclusive,
-and the default is `--examples 100`. Summaries and failing inputs are written
-under target-specific directories such as `results/baseline/ast/` and
-`results/proposed/black/`. Generated programs are not saved by default; pass
-`--log-generated` to write them under `generated/` and record pass/failure
-status in `generated_results.tsv`. Pass `--coverage` to write `coverage.txt`,
-`coverage.json`, and `.coverage` under the target result directory. Coverage is
-Python line coverage: `tokenize` is mostly measurable, `ast` does not include
-CPython parser internals, and Black requires a pure-Python/editable install
-rather than a compiled mypyc wheel for meaningful coverage data.
+Useful options:
 
-Run the current three-way 24-hour `from_node` coverage-snapshot comparison by
-launching one process per variant:
+| Option | Meaning |
+| --- | --- |
+| `--oracle {ast,tokenize,black,lib2to3,libcst}` | Target oracle |
+| `--generation-mode {from_grammar,from_node}` | Hypothesmith generator |
+| `--injection-strategy {aggressive,append,prepend,host_wrap_donor,donor_wrap_host}` | Donor injection strategy (only aggressive and append were tested) |
+| `--no-injection` | Disable donor injection in the proposed runner |
+| `--no-auto-target` | Disable Hypothesmith target guidance |
+| `--coverage` | Write final Python coverage reports |
+| `--coverage-snapshot-interval N` | Write periodic coverage snapshots during timeout runs |
+| `--results-dir PATH` | Output directory |
+
+## Run The Three Main Strategies
+
+Set the target and output root:
 
 ```bash
-ROOT=results/black_from_node_24h_auto_target_on_cst_lazy_batch10000_v1
+TARGET=black
+ROOT=results/${TARGET}_from_node_24h_auto_target_on_cst_lazy_batch10000_v1
 mkdir -p "$ROOT"/{aggressive,append,no_injection}
+```
 
+Launch `aggressive`:
+
+```bash
 timeout --verbose --signal=INT --kill-after=300 90000 \
-  python3 -u src/execute_proposed.py \
-    --oracle black \
+  venv/bin/python3 -u src/execute_proposed.py \
+    --oracle "$TARGET" \
     --timeout 86400 \
     --coverage \
     --coverage-snapshot-interval 900 \
@@ -243,10 +114,14 @@ timeout --verbose --signal=INT --kill-after=300 90000 \
     --results-dir "$ROOT/aggressive" \
     > "$ROOT/aggressive/launcher.stdout.log" \
     2> "$ROOT/aggressive/launcher.stderr.log" &
+```
 
+Launch `append`:
+
+```bash
 timeout --verbose --signal=INT --kill-after=300 90000 \
-  python3 -u src/execute_proposed.py \
-    --oracle black \
+  venv/bin/python3 -u src/execute_proposed.py \
+    --oracle "$TARGET" \
     --timeout 86400 \
     --coverage \
     --coverage-snapshot-interval 900 \
@@ -255,10 +130,14 @@ timeout --verbose --signal=INT --kill-after=300 90000 \
     --results-dir "$ROOT/append" \
     > "$ROOT/append/launcher.stdout.log" \
     2> "$ROOT/append/launcher.stderr.log" &
+```
 
+Launch `no_injection`:
+
+```bash
 timeout --verbose --signal=INT --kill-after=300 90000 \
-  python3 -u src/execute_proposed.py \
-    --oracle black \
+  venv/bin/python3 -u src/execute_proposed.py \
+    --oracle "$TARGET" \
     --timeout 86400 \
     --coverage \
     --coverage-snapshot-interval 900 \
@@ -269,224 +148,26 @@ timeout --verbose --signal=INT --kill-after=300 90000 \
     2> "$ROOT/no_injection/launcher.stderr.log" &
 ```
 
-Each variant writes `launcher.stdout.log` and `launcher.stderr.log` beside its
-target result directory. The evaluator also initializes `run_error.log` inside
-each target result directory and writes a Python traceback there before
-re-raising unexpected harness errors. The outer `timeout --verbose` supervisor
-is set to one hour past the requested run budget, so a process that ignores the
-in-process timer still leaves an exit status and timeout message in the
-launcher stderr log. Add `--no-auto-target` to each command to disable
-Hypothesmith's target-guided search, or change `--oracle black` to
-`--oracle tokenize` to run the same comparison against `tokenize`.
+Change `TARGET` to `tokenize`, `black`, or `lib2to3` for Python coverage runs.
+For shorter smoke tests, reduce `--timeout` and `--coverage-snapshot-interval`.
 
-`--generation-mode from_grammar` uses Hypothesmith's grammar-based generator.
-`--generation-mode from_node` uses Hypothesmith's LibCST-based generator.
-In the baseline runner, both modes always run without injection. In the
-proposed runner, injection is enabled by default and can be turned off with
-`--no-injection`. Both modes support donor injection through `--donor-dir` and
-`--injection-strategy`, but `from_node` tends to be slower because more
-generated host/donor combinations get filtered out before acceptance.
+## Results
 
-## Patched Hypothesmith API
+Each variant writes a target directory like:
 
-The submodule adds:
-
-```python
-hypothesmith.from_grammar(
-    start="file_input",
-    *,
-    auto_target=True,
-    inject_realworld=False,
-    donor_dir=None,
-    injection_strategy="append",
-)
+```text
+results/.../append/black/
 ```
 
-```python
-hypothesmith.from_node(
-    *,
-    auto_target=True,
-    inject_realworld=False,
-    donor_dir=None,
-    injection_strategy="append",
-)
-```
+Important files:
 
-When `inject_realworld=True`, donor snippets are loaded from `donor_dir`, or
-from `directory/base_programs/donor_corpus/filtered` by default. Injection is
-supported in both generator modes. For `from_grammar`, injection still requires
-`start="file_input"` because donor snippets are module-level Python fragments.
+- `summaries/summary.txt`
+- `execution_results.txt`
+- `coverage.txt`
+- `coverage.json`
+- `coverage_snapshots/`
+- `failures/`
 
-## Injection Strategies
-
-The current proposed runner supports 5 injection strategies:
-
-| Strategy | Description |
-| --- | --- |
-| `aggressive` | Insert many copies of the generated host throughout nested donor code |
-| `append` | Put donor statements after the generated host statements |
-| `prepend` | Put donor statements before the generated host statements |
-| `host_wrap_donor` | Try to insert donor statements into an existing nested block in the host |
-| `donor_wrap_host` | Try to insert host statements into an existing nested block in the donor |
-
-### `aggressive`
-
-This strategy is an amplified version of `donor_wrap_host`. Instead of trying to
-insert the generated host once, it attempts to insert multiple copies of the
-host throughout nested donor bodies. The current implementation targets up to
-`10` copies. If the donor has no suitable nested body, it falls back to adding
-multiple synthetic wrapper functions that each contain a copy of the host.
-
-Host:
-
-```python
-if ready:
-    x = 1
-```
-
-Donor:
-
-```python
-def outer():
-    if cond_a:
-        y = 2
-    if cond_b:
-        z = 3
-```
-
-Possible result:
-
-```python
-def outer():
-    if cond_a:
-        y = 2
-        if ready:
-            x = 1
-    if cond_b:
-        z = 3
-        if ready:
-            x = 1
-```
-
-### `append`
-
-Host:
-
-```python
-x = 1
-print(x)
-```
-
-Donor:
-
-```python
-def helper():
-    return 42
-```
-
-Result:
-
-```python
-x = 1
-print(x)
-
-def helper():
-    return 42
-```
-
-### `prepend`
-
-Host:
-
-```python
-x = 1
-print(x)
-```
-
-Donor:
-
-```python
-def helper():
-    return 42
-```
-
-Result:
-
-```python
-def helper():
-    return 42
-
-x = 1
-print(x)
-```
-
-### `host_wrap_donor`
-
-This strategy prefers a real nested insertion point in the generated host. If
-the host already contains a compound statement such as `if`, `for`, `while`,
-`with`, `try`, `match`, or a function body, donor statements are inserted into
-that nested structure. If the host has no suitable nested body, the strategy
-falls back to wrapping the donor in a synthetic helper function.
-
-Host:
-
-```python
-if ready:
-    x = 1
-```
-
-Donor:
-
-```python
-if enabled:
-    y = 2
-```
-
-Possible result:
-
-```python
-if ready:
-    x = 1
-    if enabled:
-        y = 2
-```
-
-### `donor_wrap_host`
-
-This is the reverse direction: it prefers inserting generated host statements
-into an existing nested block from the donor. If the donor has no suitable
-nested body, the strategy falls back to wrapping the host in a synthetic helper
-function.
-
-Host:
-
-```python
-if ready:
-    x = 1
-```
-
-Donor:
-
-```python
-def helper():
-    y = 2
-```
-
-Possible result:
-
-```python
-def helper():
-    y = 2
-    if ready:
-        x = 1
-```
-
-## Oracles
-
-The current evaluation runs three source-processing checks:
-
-| Oracle | Check |
-| --- | --- |
-| `ast` | Parse, unparse, and parse again |
-| `tokenize` | Tokenize, untokenize, and parse again |
-| `black` | Verify Black formatting is idempotent |
+LibCST native coverage uses the separate LLVM snapshot setup under
+`.native_coverage/`; see `scripts/native_coverage_snapshotter.sh` if you need
+to rerun that path.
