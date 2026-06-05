@@ -7,7 +7,6 @@ coverage.
 
 Current target oracles:
 
-- `ast`
 - `tokenize`
 - `black`
 - `lib2to3`
